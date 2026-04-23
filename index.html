@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數學特訓</title>
+    <style>
+        /* 引入可愛圓潤的字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #ffe6f2; /* 粉紅背景 */
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 準星改成可愛的粉色十字 */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background-color: rgba(255, 105, 180, 0.9); /* 熱力粉紅 */
+            border-radius: 5px;
+        }
+        #crosshair::before { top: 8px; left: -4px; width: 28px; height: 4px; }
+        #crosshair::after { top: -4px; left: 8px; width: 4px; height: 28px; }
+
+        /* UI 介面 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-box {
+            background: rgba(255, 255, 255, 0.8);
+            color: #ff69b4;
+            font-size: 24px;
+            font-weight: 900;
+            padding: 10px 25px;
+            border: 3px solid #ffb3ba;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(255, 182, 193, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .hud-bottom {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* 暫停/開始/結算畫面共用背景 */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 230, 242, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+        }
+
+        .panel {
+            background: #fff;
+            padding: 40px;
+            border: 5px solid #ffb3ba;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.3);
+            cursor: pointer;
+            color: #ff69b4;
+        }
+
+        h1 {
+            color: #ff1493;
+            margin-top: 0;
+            font-size: 48px;
+            text-shadow: 2px 2px 0px #ffe6f2;
+        }
+
+        p {
+            font-size: 22px;
+            line-height: 1.6;
+            color: #ff69b4;
+            font-weight: bold;
+        }
+
+        .highlight { color: #ff3333; font-weight: 900; font-size: 26px; }
+        
+        #victory-screen {
+            display: none;
+        }
+
+        .btn {
+            background-color: #ff69b4;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-family: 'Nunito', sans-serif;
+            box-shadow: 0 5px 0 #d04f90;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #d04f90;
+        }
+
+        /* 受傷/答對全螢幕特效 */
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 0, 0, 0);
+            pointer-events: none;
+            z-index: 15;
+            transition: background-color 0.2s;
+        }
+
+        #correct-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 182, 193, 0); /* 閃粉紅光 */
+            pointer-events: none;
+            z-index: 15;
+            transition: background-color 0.2s;
+        }
+
+        /* 升級文字的動畫特效 */
+        @keyframes popUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+
+        #upgrade-message {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            color: #ffd700;
+            text-shadow: 0 0 20px #ff1493, 2px 2px 0px #fff;
+            font-weight: 900;
+            z-index: 25;
+            pointer-events: none;
+            display: none;
+        }
+        
+        .show-upgrade {
+            display: block !important;
+            animation: popUp 2s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+    <div id="crosshair"></div>
+    
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div>
+                <div class="hud-box" id="score-display">分數: 0 / 100</div>
+                <div class="hud-box" id="timer-display">時間: 0.0s</div>
+                <div class="hud-box" id="coin-display">金幣: 0</div>
+            </div>
+            <div class="hud-box" style="font-size: 20px;">數學特訓班</div>
+        </div>
+        <div class="hud-bottom">
+            <div class="hud-box" style="font-size: 18px; padding: 5px 15px;">發射器準備就緒</div>
+        </div>
+    </div>
+
+    <div id="damage-overlay"></div>
+    <div id="correct-overlay"></div>
+    <div id="upgrade-message">發射器升級！</div>
+
+    <!-- 開始/暫停畫面 -->
+    <div id="blocker" class="overlay-screen">
+        <div class="panel" id="instructions">
+            <h1>數學特訓</h1>
+            <p>點擊畫面開始遊戲</p>
+            <p>
+                [W, A, S, D] 移動<br>
+                [滑鼠] 控制視角<br>
+                [滑鼠左鍵] 發射星星
+            </p>
+            <p>看清楚小方塊人頭上的 <span class="highlight">數學題</span><br>
+               擊中身上 <span class="highlight">正確答案</span> 的數字！<br>
+               (答對+10分，掉落金幣需走過去撿，答錯-5分)<br>
+               武器升級後打敗敵人改加 <span class="highlight">15分</span>！</p>
+            <p style="color: #ff1493;">目標：達到 100 分！</p>
+        </div>
+    </div>
+
+    <!-- 結算勝利畫面 -->
+    <div id="victory-screen" class="overlay-screen">
+        <div class="panel">
+            <h1>恭喜過關！</h1>
+            <p>你已經成功達到 100 分了！</p>
+            <p>總花費時間：<span class="highlight" id="final-time">0.0</span> 秒</p>
+            <button class="btn" onclick="restartGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- 遊戲全域變數 ---
+        let camera, scene, renderer;
+        let pitchObject, yawObject;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        
+        let robots = [];
+        let clickableObjects = [];
+        let droppedCoins = []; // 儲存掉落在地上的金幣
+        let score = 0;
+        
+        let gunMesh;
+        let muzzleFlash;
+        let isShooting = false;
+        let gunRecoilTimer = 0;
+        
+        // 武器外觀群組
+        let wandGroupLevel1;
+        let wandGroupLevel2;
+
+        // 計時與遊戲狀態
+        let isGameRunning = false;
+        let totalTimeElapsed = 0;
+        let coins = 0;
+        let weaponLevel = 1;
+
+        const clock = new THREE.Clock();
+
+        // 取得 UI 元素
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const damageOverlay = document.getElementById('damage-overlay');
+        const correctOverlay = document.getElementById('correct-overlay');
+        const victoryScreen = document.getElementById('victory-screen');
+        const finalTimeDisplay = document.getElementById('final-time');
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffe6f2); 
+            scene.fog = new THREE.FogExp2(0xffe6f2, 0.015);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            pitchObject = new THREE.Object3D();
+            pitchObject.add(camera);
+
+            yawObject = new THREE.Object3D();
+            yawObject.position.y = 10; 
+            yawObject.add(pitchObject);
+            scene.add(yawObject);
+
+            createEnvironment();
+            createWand();
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.8, 100);
+            yawObject.add(pointLight); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            setupEventListeners();
+            spawnRobots(3);
+        }
+
+        function createEnvironment() {
+            const floorGeometry = new THREE.PlaneGeometry(200, 200);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff,
+                roughness: 0.9,
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            const gridHelper = new THREE.GridHelper(200, 40, 0xffb3ba, 0xffd1dc);
+            gridHelper.position.y = 0.1;
+            scene.add(gridHelper);
+
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xfff0f5, roughness: 1.0 });
+            
+            const wallGeo1 = new THREE.BoxGeometry(200, 50, 2);
+            const wall1 = new THREE.Mesh(wallGeo1, wallMaterial);
+            wall1.position.set(0, 25, -100);
+            scene.add(wall1);
+
+            const wall2 = new THREE.Mesh(wallGeo1, wallMaterial);
+            wall2.position.set(0, 25, 100);
+            scene.add(wall2);
+
+            const wallGeo2 = new THREE.BoxGeometry(2, 50, 200);
+            const wall3 = new THREE.Mesh(wallGeo2, wallMaterial);
+            wall3.position.set(-100, 25, 0);
+            scene.add(wall3);
+
+            const wall4 = new THREE.Mesh(wallGeo2, wallMaterial);
+            wall4.position.set(100, 25, 0);
+            scene.add(wall4);
+        }
+
+        function createWand() {
+            gunMesh = new THREE.Group();
+            
+            // --- 等級 1 ---
+            wandGroupLevel1 = new THREE.Group();
+            const handleGeo = new THREE.CylinderGeometry(0.15, 0.2, 3, 16);
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+            const handle = new THREE.Mesh(handleGeo, handleMat);
+            handle.rotation.x = Math.PI / 2;
+            wandGroupLevel1.add(handle);
+
+            const gemGeo = new THREE.IcosahedronGeometry(0.6, 0);
+            const gemMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffaa00 });
+            const gem = new THREE.Mesh(gemGeo, gemMat);
+            gem.position.set(0, 0, -1.8);
+            wandGroupLevel1.add(gem);
+            gunMesh.add(wandGroupLevel1);
+
+            // --- 等級 2 ---
+            wandGroupLevel2 = new THREE.Group();
+            const handleGeo2 = new THREE.CylinderGeometry(0.2, 0.3, 3.5, 16);
+            const handleMat2 = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3, metalness: 0.8 });
+            const handle2 = new THREE.Mesh(handleGeo2, handleMat2);
+            handle2.rotation.x = Math.PI / 2;
+            wandGroupLevel2.add(handle2);
+
+            const gemGeo2 = new THREE.OctahedronGeometry(0.9, 0);
+            const gemMat2 = new THREE.MeshStandardMaterial({ color: 0xff1493, emissive: 0xff69b4 });
+            const gem2 = new THREE.Mesh(gemGeo2, gemMat2);
+            gem2.position.set(0, 0, -2.0);
+            wandGroupLevel2.add(gem2);
+            
+            const ringGeo = new THREE.TorusGeometry(1.2, 0.1, 16, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.set(0, 0, -2.0);
+            ring.rotation.x = Math.PI / 2;
+            wandGroupLevel2.add(ring);
+            
+            wandGroupLevel2.visible = false;
+            gunMesh.add(wandGroupLevel2);
+
+            // 閃光
+            const flashGeo = new THREE.CircleGeometry(1.5, 8);
+            const flashMat = new THREE.MeshBasicMaterial({ 
+                color: 0xff69b4, 
+                transparent: true, 
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            muzzleFlash = new THREE.Mesh(flashGeo, flashMat);
+            muzzleFlash.position.set(0, 0, -2.5);
+            muzzleFlash.visible = false;
+            gunMesh.add(muzzleFlash);
+
+            gunMesh.position.set(1.5, -1.5, -3);
+            pitchObject.add(gunMesh);
+        }
+
+        function createTextTexture(text, textColor = '#ff69b4', bgColor = '#ffffff', width = 256, height = 128) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#ffb3ba';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, canvas.width-6, canvas.height-6);
+
+            const fontSize = height * 0.5; 
+            ctx.font = `bold ${fontSize}px "Nunito", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = textColor;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        function generateMathProblem() {
+            const ops = ['+', '-', 'x'];
+            const op = ops[Math.floor(Math.random() * ops.length)];
+            let num1, num2, ans;
+
+            if (op === '+') {
+                num1 = Math.floor(Math.random() * 15) + 1;
+                num2 = Math.floor(Math.random() * 15) + 1;
+                ans = num1 + num2;
+            } else if (op === '-') {
+                num1 = Math.floor(Math.random() * 20) + 10;
+                num2 = Math.floor(Math.random() * num1);
+                ans = num1 - num2;
+            } else {
+                num1 = Math.floor(Math.random() * 9) + 2;
+                num2 = Math.floor(Math.random() * 9) + 2;
+                ans = num1 * num2;
+            }
+
+            let options = [ans];
+            while (options.length < 3) {
+                let offset = Math.floor(Math.random() * 10) - 5;
+                if (offset === 0) offset = 2;
+                let wrongAns = ans + offset;
+                if (wrongAns >= 0 && !options.includes(wrongAns)) {
+                    options.push(wrongAns);
+                }
+            }
+
+            for (let i = options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [options[i], options[j]] = [options[j], options[i]];
+            }
+
+            return {
+                text: `${num1} ${op} ${num2} = ?`,
+                correctAnswer: ans,
+                options: options
+            };
+        }
+
+        // --- 掉落的金幣類別 ---
+        class DroppedCoin {
+            constructor(position) {
+                this.mesh = new THREE.Group();
+                
+                // 金幣主體
+                const coinGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.3, 16);
+                const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+                const coinMesh = new THREE.Mesh(coinGeo, coinMat);
+                coinMesh.rotation.x = Math.PI / 2;
+                
+                // 金幣內圈
+                const innerGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.32, 16);
+                const innerMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.8, roughness: 0.2 });
+                const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+                innerMesh.rotation.x = Math.PI / 2;
+                
+                this.mesh.add(coinMesh);
+                this.mesh.add(innerMesh);
+                
+                // 設定在機器人死掉的座標
+                this.mesh.position.copy(position);
+                this.mesh.position.y = 2; // 漂浮高度
+                
+                scene.add(this.mesh);
+                this.isCollected = false;
+            }
+
+            update(delta, playerPos) {
+                if (this.isCollected) return;
+                
+                // 自轉與上下浮動動畫
+                this.mesh.rotation.y += 3 * delta;
+                this.mesh.position.y = 2 + Math.sin(clock.getElapsedTime() * 5) * 0.5;
+
+                // 檢查玩家距離 (x, z 軸的距離)
+                const dist = Math.hypot(this.mesh.position.x - playerPos.x, this.mesh.position.z - playerPos.z);
+                
+                // 如果距離夠近，就撿起來
+                if (dist < 3.5) {
+                    this.isCollected = true;
+                    scene.remove(this.mesh);
+                    addCoins(5); // 獲得金幣
+                }
+            }
+        }
+
+        // --- 機器人類別 ---
+        class Robot {
+            constructor() {
+                this.group = new THREE.Group();
+                this.mathData = generateMathProblem();
+                this.isDead = false;
+                
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0xbae1ff, roughness: 0.6, metalness: 0.1 });
+                const jointMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+                const torsoGeo = new THREE.BoxGeometry(4, 5, 2.5);
+                this.torso = new THREE.Mesh(torsoGeo, bodyMat);
+                this.torso.position.y = 8;
+                this.group.add(this.torso);
+
+                const headGeo = new THREE.BoxGeometry(3, 3, 3);
+                this.head = new THREE.Mesh(headGeo, bodyMat);
+                this.head.position.y = 4.5;
+                this.torso.add(this.head);
+                
+                const eyeGeo = new THREE.CircleGeometry(0.3, 16);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+                leftEye.position.set(-0.7, 0.2, 1.55);
+                this.head.add(leftEye);
+                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+                rightEye.position.set(0.7, 0.2, 1.55);
+                this.head.add(rightEye);
+
+                const legGeo = new THREE.BoxGeometry(1.4, 4, 1.4);
+                this.leftLeg = new THREE.Mesh(legGeo, jointMat);
+                this.leftLeg.position.set(-1.2, -4.5, 0);
+                this.torso.add(this.leftLeg);
+
+                this.rightLeg = new THREE.Mesh(legGeo, jointMat);
+                this.rightLeg.position.set(1.2, -4.5, 0);
+                this.torso.add(this.rightLeg);
+
+                const armGeo = new THREE.BoxGeometry(1.2, 4, 1.2);
+                const leftArm = new THREE.Mesh(armGeo, jointMat);
+                leftArm.position.set(-3, -0.5, 0);
+                this.torso.add(leftArm);
+                
+                const rightArm = new THREE.Mesh(armGeo, jointMat);
+                rightArm.position.set(3, -0.5, 0);
+                this.torso.add(rightArm);
+                
+                const probTex = createTextTexture(this.mathData.text, '#ff1493', '#ffffff', 512, 128);
+                const probMat = new THREE.MeshBasicMaterial({ map: probTex, side: THREE.DoubleSide });
+                const probGeo = new THREE.PlaneGeometry(8, 2); 
+                const probMesh = new THREE.Mesh(probGeo, probMat);
+                probMesh.position.set(0, 1.5, 1.6);
+                this.head.add(probMesh);
+
+                const createHitbox = (number, width, height) => {
+                    const isCorrect = (number === this.mathData.correctAnswer);
+                    const tex = createTextTexture(number.toString(), '#ff1493', '#ffffff', 128, 128);
+                    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                    const geo = new THREE.PlaneGeometry(width, height);
+                    const mesh = new THREE.Mesh(geo, mat);
+                    
+                    mesh.userData = {
+                        isHitbox: true,
+                        isCorrect: isCorrect,
+                        parentRobot: this,
+                        value: number
+                    };
+                    clickableObjects.push(mesh);
+                    return mesh;
+                };
+
+                const chestPlate = createHitbox(this.mathData.options[0], 2.5, 2.5);
+                chestPlate.position.set(0, 0, 1.3);
+                this.torso.add(chestPlate);
+
+                const leftLegPlate = createHitbox(this.mathData.options[1], 1.2, 1.2);
+                leftLegPlate.position.set(0, 0, 0.75);
+                this.leftLeg.add(leftLegPlate);
+
+                const rightLegPlate = createHitbox(this.mathData.options[2], 1.2, 1.2);
+                rightLegPlate.position.set(0, 0, 0.75);
+                this.rightLeg.add(rightLegPlate);
+
+                const angle = (Math.random() - 0.5) * Math.PI; 
+                const distance = 30 + Math.random() * 30;
+                this.group.position.set(
+                    Math.sin(angle) * distance,
+                    0,
+                    -Math.cos(angle) * distance 
+                );
+                
+                this.group.lookAt(yawObject.position.x, 0, yawObject.position.z);
+                scene.add(this.group);
+                this.timeOffset = Math.random() * 100;
+            }
+
+            update(delta, playerPos) {
+                if (this.isDead) return;
+
+                const targetPos = new THREE.Vector3(playerPos.x, 0, playerPos.z);
+                this.group.lookAt(targetPos);
+
+                const speed = 4;
+                this.group.translateZ(speed * delta); 
+
+                const time = clock.getElapsedTime() * 6 + this.timeOffset;
+                this.leftLeg.rotation.x = Math.sin(time) * 0.4;
+                this.rightLeg.rotation.x = Math.sin(time + Math.PI) * 0.4;
+                this.torso.position.y = 8 + Math.abs(Math.sin(time * 1.5)) * 0.8;
+
+                const dist = this.group.position.distanceTo(targetPos);
+                if (dist < 5) {
+                    this.explode(false); 
+                    showDamage();
+                }
+            }
+
+            explode(success) {
+                this.isDead = true;
+                scene.remove(this.group);
+                
+                clickableObjects = clickableObjects.filter(obj => obj.userData.parentRobot !== this);
+
+                if (success) {
+                    // 升級後改為加15分，未升級為10分
+                    const pointsToAdd = weaponLevel === 2 ? 15 : 10;
+                    updateScore(pointsToAdd);
+                    
+                    // 原地掉落一枚金幣
+                    droppedCoins.push(new DroppedCoin(this.group.position));
+                    
+                    showCorrect();
+                } else {
+                    updateScore(-5);
+                }
+
+                if (score < 100) {
+                    setTimeout(() => {
+                        if(isGameRunning) spawnRobots(1);
+                    }, 1000);
+                }
+            }
+        }
+
+        function spawnRobots(count) {
+            for(let i=0; i<count; i++){
+                robots.push(new Robot());
+            }
+        }
+
+        function updateScore(points) {
+            score += points;
+            score = Math.max(0, score); 
+            scoreDisplay.innerText = `分數: ${score} / 100`;
+
+            if (score >= 100 && isGameRunning) {
+                gameWin();
+            }
+        }
+
+        function addCoins(amount) {
+            coins += amount;
+            document.getElementById('coin-display').innerText = `金幣: ${coins}`;
+            
+            if (coins >= 20 && weaponLevel === 1) {
+                upgradeWeapon();
+            }
+        }
+
+        function upgradeWeapon() {
+            weaponLevel = 2;
+            
+            wandGroupLevel1.visible = false;
+            wandGroupLevel2.visible = true;
+            
+            const upgradeMsg = document.getElementById('upgrade-message');
+            upgradeMsg.classList.remove('show-upgrade');
+            void upgradeMsg.offsetWidth; 
+            upgradeMsg.classList.add('show-upgrade');
+            
+            setTimeout(() => {
+                upgradeMsg.classList.remove('show-upgrade');
+            }, 2000);
+        }
+
+        function gameWin() {
+            isGameRunning = false;
+            document.exitPointerLock(); 
+            victoryScreen.style.display = 'flex';
+            finalTimeDisplay.innerText = totalTimeElapsed.toFixed(1);
+        }
+
+        window.restartGame = function() {
+            score = 0;
+            updateScore(0);
+            totalTimeElapsed = 0;
+            timerDisplay.innerText = `時間: 0.0s`;
+            
+            coins = 0;
+            weaponLevel = 1;
+            document.getElementById('coin-display').innerText = `金幣: 0`;
+            wandGroupLevel1.visible = true;
+            wandGroupLevel2.visible = false;
+            
+            robots.forEach(r => scene.remove(r.group));
+            robots = [];
+            clickableObjects = [];
+            
+            // 清理場上的金幣
+            droppedCoins.forEach(c => scene.remove(c.mesh));
+            droppedCoins = [];
+            
+            yawObject.position.set(0, 10, 0); 
+            pitchObject.rotation.x = 0;
+            yawObject.rotation.y = 0;
+
+            victoryScreen.style.display = 'none';
+            spawnRobots(3);
+            
+            document.getElementById('instructions').click(); 
+        };
+
+        function setupEventListeners() {
+            instructions.addEventListener('click', () => {
+                document.body.requestPointerLock();
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    blocker.style.display = 'none';
+                    if (score < 100) {
+                        isGameRunning = true;
+                    }
+                } else {
+                    if (score < 100) {
+                        blocker.style.display = 'flex';
+                        isGameRunning = false;
+                    }
+                }
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (document.pointerLockElement === document.body) {
+                    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+                    yawObject.rotation.y -= movementX * 0.002;
+                    pitchObject.rotation.x -= movementY * 0.002;
+                    
+                    pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+                }
+            });
+
+            const onKeyDown = function (event) {
+                switch (event.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyD': moveRight = true; break;
+                }
+            };
+
+            const onKeyUp = function (event) {
+                switch (event.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyD': moveRight = false; break;
+                }
+            };
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            document.addEventListener('mousedown', (event) => {
+                if (document.pointerLockElement === document.body && event.button === 0 && isGameRunning) {
+                    shoot();
+                }
+            });
+            
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const center = new THREE.Vector2(0, 0);
+
+        function shoot() {
+            isShooting = true;
+            gunRecoilTimer = 0.2;
+            muzzleFlash.visible = true;
+            muzzleFlash.rotation.z = Math.random() * Math.PI;
+
+            raycaster.setFromCamera(center, camera);
+            const intersects = raycaster.intersectObjects(clickableObjects);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const data = hitMesh.userData;
+
+                if (data.isHitbox) {
+                    if (data.isCorrect) {
+                        data.parentRobot.explode(true);
+                    } else {
+                        showDamage();
+                        updateScore(-5);
+                    }
+                }
+            }
+        }
+
+        function showDamage() {
+            damageOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+            setTimeout(() => {
+                damageOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0)';
+            }, 200);
+        }
+
+        function showCorrect() {
+            correctOverlay.style.backgroundColor = 'rgba(255, 105, 180, 0.4)'; 
+            setTimeout(() => {
+                correctOverlay.style.backgroundColor = 'rgba(255, 182, 193, 0)';
+            }, 150);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            prevTime = time;
+
+            if (isGameRunning) {
+                totalTimeElapsed += delta;
+                timerDisplay.innerText = `時間: ${totalTimeElapsed.toFixed(1)}s`;
+            }
+
+            if (document.pointerLockElement === document.body && isGameRunning) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize(); 
+
+                const speedMultiplier = 150.0;
+                if (moveForward || moveBackward) velocity.z -= direction.z * speedMultiplier * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speedMultiplier * delta;
+
+                yawObject.translateX(velocity.x * delta);
+                yawObject.translateZ(velocity.z * delta);
+
+                yawObject.position.x = Math.max(-95, Math.min(95, yawObject.position.x));
+                yawObject.position.z = Math.max(-95, Math.min(95, yawObject.position.z));
+
+                // 更新敵人
+                robots.forEach((robot) => {
+                    robot.update(delta, yawObject.position);
+                });
+                robots = robots.filter(r => !r.isDead);
+
+                // 更新地上的金幣
+                droppedCoins.forEach(coin => {
+                    coin.update(delta, yawObject.position);
+                });
+                droppedCoins = droppedCoins.filter(c => !c.isCollected);
+
+                if (gunRecoilTimer > 0) {
+                    gunRecoilTimer -= delta;
+                    gunMesh.rotation.x = THREE.MathUtils.lerp(gunMesh.rotation.x, 0.3, 0.4);
+                } else {
+                    gunMesh.rotation.x = THREE.MathUtils.lerp(gunMesh.rotation.x, 0, 0.2);
+                    muzzleFlash.visible = false;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
