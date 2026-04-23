@@ -199,9 +199,40 @@
             display: block !important;
             animation: popUp 2s ease-in-out forwards;
         }
+
+        /* 開場圖片全螢幕遮罩 */
+        #splash-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffe6f2; /* 配合遊戲的粉紅背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #splash-screen img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.3);
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
+
+    <!-- 開場圖片 -->
+    <div id="splash-screen">
+        <img src="https://docs.google.com/drawings/d/1NShjklKMzAAMZ9J_vaERIMSGjw57jsW6hh2ym9CEh6w/export/png" alt="開場畫面">
+    </div>
 
     <div id="game-container"></div>
     <div id="crosshair"></div>
@@ -919,6 +950,19 @@
 
         init();
         animate();
+
+        // 處理開場圖片淡出邏輯
+        window.addEventListener('load', () => {
+            const splashScreen = document.getElementById('splash-screen');
+            // 顯示 3 秒後開始淡出
+            setTimeout(() => {
+                splashScreen.classList.add('fade-out');
+                // 等待 1 秒的淡出動畫結束後，徹底隱藏該元素避免阻擋點擊
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                }, 1000);
+            }, 3000);
+        });
     </script>
 </body>
 </html>
